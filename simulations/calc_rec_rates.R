@@ -2,7 +2,7 @@ library(readr)
 library(tidyverse)
 library(Hmisc)
 
-# Load in the ratemap
+# Load in the ratemap - originally from Calfee et al. 2021, lifted linkage map to B73 v4
 rmap_path <- "ogut_2015_rmap.txt"
 rmap <- read_table(rmap_path)
 

@@ -1,6 +1,8 @@
 # tga1
-While some analyses were run with Snakemake workflows, most used stand-alone R scripts and bash scripts. 
+Most analyses use stand-alone R scripts and bash scripts.
 
 # Overview
+## Simulations
+### Estimating recombination rates to use for simulations
 
 # Data availability

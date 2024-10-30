@@ -2,6 +2,10 @@
 Most analyses use stand-alone R scripts and bash scripts.
 
 # Overview
+## ELAI
+### Preparing input (VCFs and bimbams)
+### Run ELAI and combine results from replicate runs (Snakefile)
+### Make figures
 ## Simulations
 ### Preparation
 #### Estimating recombination rates to use for simulations

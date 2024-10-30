@@ -1,0 +1,92 @@
+import pandas as pd
+
+# Load combinations from the file
+combinations = pd.read_csv("all_combinations.txt", sep=r'\s+')
+
+# Generate a list of all filenames for the final results
+combinations_list = list(zip(combinations['sample'], combinations['chrom'], combinations['gens']))
+filenames = list(set(
+    f"results/{sample}_{chrom}_{gens}_output.txt" for sample, chrom, gens in combinations_list
+))
+
+# Function to get the seed from a particular sample, chrom, and generation combination
+def get_seeds(sample, chrom, gens):
+    # Print column names for debugging
+    # print("Column names:", combinations.columns)
+    
+    # Filter combinations to find the relevant seeds
+    try:
+        relevant_combinations = combinations[
+            (combinations['sample'] == sample) &
+            (combinations['chrom'] == chrom) &
+            (combinations['gens'] == gens)
+        ]
+    except KeyError as e:
+        print(f"KeyError: {e}. Check column names in the DataFrame.")
+        raise
+    
+    return relevant_combinations['seed'].tolist()
+
+# Rule all includes the output of prep_elai to ensure it runs last
+rule all:
+    input:
+        filenames
+
+rule run_elai:
+    input:
+        geno_maize="/home/reginaf/tga1/analysis/elai-all-chroms/input/trop_maize_{chrom}_bimbam.inp.recode.geno.txt",
+        geno_parv="/home/reginaf/tga1/analysis/elai-all-chroms/input/parv_{chrom}_bimbam.inp.recode.geno.txt",
+        geno_mex="/home/reginaf/tga1/analysis/elai-all-chroms/input/mex_{chrom}_bimbam.inp.recode.geno.txt",
+        geno_sample="/home/reginaf/tga1/analysis/elai-all-chroms/input/{sample}_{chrom}_bimbam.inp.recode.geno.txt",
+        pos="/home/reginaf/tga1/analysis/elai-all-chroms/input/trop_maize_{chrom}_bimbam.inp.recode.pos.txt"
+    output:
+        "output/{sample}_{chrom}_{gens}_{seed}.ps21.txt",
+        "output/{sample}_{chrom}_{gens}_{seed}.admix.txt",
+        "output/{sample}_{chrom}_{gens}_{seed}.log.txt",
+        "output/{sample}_{chrom}_{gens}_{seed}.em.txt",
+        "output/{sample}_{chrom}_{gens}_{seed}.snpinfo.txt"
+    shell:
+        """
+        /home/reginaf/bin/ELAI/elai-mt -g {input.geno_maize} -p 10 \
+            -g {input.geno_parv} -p 11 \
+            -g {input.geno_mex} -p 12 \
+            -g {input.geno_sample} -p 1 \
+            -pos {input.pos} \
+            -s 30 -C 3 -c 15 -mg {wildcards.gens} \
+            -R {wildcards.seed} \
+            --exclude-maf 0.01 --exclude-miss 0.05 --exclude-miss1 --exclude-nopos \
+            -o {wildcards.sample}_{wildcards.chrom}_{wildcards.gens}_{wildcards.seed} || [ $? -eq 1 ] || true
+        """
+
+# Rule to combine the replicate runs into one output
+rule prep_elai:
+    input:
+        merge=lambda wildcards: expand(
+            "output/{sample}_{chrom}_{gens}_{seed}.ps21.txt", zip,
+            sample=combinations['sample'],  
+            chrom=combinations['chrom'],        
+            gens=combinations['gens'],         
+            seed=get_seeds(
+                combinations['sample'], 
+                combinations['chrom'], 
+                combinations['gens']
+            )
+        )
+    output:
+        "results/{sample}_{chrom}_{gens}_output.txt"
+    run:
+        sample1 = str(wildcards.sample).strip()
+        chrom1 = int(wildcards.chrom)
+        gens1 = int(wildcards.gens)
+        seeds2 = get_seeds(sample1, chrom1, gens1)
+        # print(seeds2)
+        # Print the seeds for debugging
+        print(f"Seeds: {seeds2}")
+        
+        # Create the output file by concatenating input files
+        with open(output[0], 'w') as outfile:
+            for seed in seeds2:
+                input_file = f"output/{wildcards.sample}_{wildcards.chrom}_{wildcards.gens}_{seed}.ps21.txt"
+                print(f"Processing {input_file}")
+                with open(input_file, 'r') as infile:
+                    outfile.write(infile.read())

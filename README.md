@@ -3,6 +3,8 @@ Most analyses use stand-alone R scripts and bash scripts.
 
 # Overview
 ## Simulations
-### Estimating recombination rates to use for simulations
+### Preparation
+#### Estimating recombination rates to use for simulations
+#### Formatting Wang et al. 2017 MSMC demographic model for msprime, SLiM 
 
 # Data availability

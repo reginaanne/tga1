@@ -2,7 +2,7 @@
 Most analyses use stand-alone R scripts and bash scripts.
 
 # Overview
-## ELAI
+## ELAI (local ancestry analysis)
 ### Preparing input (VCFs and bimbams)
 ### Run ELAI and combine results from replicate runs (Snakefile)
 ### Make figures

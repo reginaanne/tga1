@@ -2,13 +2,10 @@
 Most analyses use stand-alone R scripts and bash scripts.
 
 # Overview
+## Relate (mutation age estimate)
 ## ELAI (local ancestry analysis)
-### Preparing input (VCFs and bimbams)
-### Run ELAI and combine results from replicate runs (Snakefile)
-### Make figures
+## Haplotype visualization
 ## Simulations
-### Preparation
-#### Estimating recombination rates to use for simulations
-#### Formatting Wang et al. 2017 MSMC demographic model for msprime, SLiM 
 
 # Data availability
+The ZEAMAP dataset used for this project can be accessed online at https://ftp.cngb.org/pub/CNSA/data3/CNP0001565/zeamap/02_Variants/PAN_Zea_Variants/Zea-vardb/. 

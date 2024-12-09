@@ -1,0 +1,147 @@
+// Maize simulation with demographic model adapted from Wang et al. 2017
+// Downscaled 10x 
+// de novo
+// first run "pre-domestication" population history in msprime
+
+initialize() {
+    initializeTreeSeq();
+    initializeMutationRate(0); // adding mutations later in msprime
+    initializeMutationType("m1", 0.5, "f", 0.0); // neutral
+    initializeMutationType("m2", 0.5, "f", sel); // selected
+
+    m1.mutationStackPolicy = "f";
+    m2.mutationStackPolicy = "f";
+
+    initializeGenomicElementType("g1", m2, 1.0);
+    initializeGenomicElement(g1, 0, 999999); // 1Mb
+    initializeRecombinationRate(rec);
+}
+
+// Start simulation
+1 early() {
+    defineConstant("simID", getSeed());
+}
+
+// Load in neutral diversity from msprime
+1 late() {
+    sim.readFromPopulationFile(trees);
+    sim.treeSeqRememberIndividuals(p0.individuals);
+
+    // Introduce the mutation
+    target = sample(p0.genomes, 1);
+    target.addNewDrawnMutation(m2, 500000);
+    
+    // save information about selected mutation
+    mut = sim.mutationsOfType(m2);
+    defineGlobal("selectedMutId", mut.id);
+    startingFreq =  sim.mutationFrequencies(p0, mut);
+    defineGlobal("startingFreq", startingFreq);
+}
+
+204 early() {
+  p0.setSubpopulationSize(1945);
+}
+
+422 early() {
+  p0.setSubpopulationSize(1658);
+}
+
+606 early() {
+  p0.setSubpopulationSize(1406);
+}
+
+761 early() {
+  p0.setSubpopulationSize(1188);
+}
+
+892 early() {
+  p0.setSubpopulationSize(1005);
+}
+
+1002 early() {
+  p0.setSubpopulationSize(853);
+}
+
+1095 early() {
+  p0.setSubpopulationSize(731);
+}
+
+1173 early() {
+  p0.setSubpopulationSize(638);
+}
+
+1238 early() {
+  p0.setSubpopulationSize(571);
+}
+
+1294 early() {
+  p0.setSubpopulationSize(529);
+}
+
+1340 early() {
+  p0.setSubpopulationSize(513);
+}
+
+1380 early() {
+  p0.setSubpopulationSize(556);
+}
+
+1441 early() {
+  p0.setSubpopulationSize(879);
+}
+
+1484 early() {
+  p0.setSubpopulationSize(2883);
+}
+
+1515 early() {
+  p0.setSubpopulationSize(47883);
+}
+
+1537 early() {
+  p0.setSubpopulationSize(2832858);
+}
+
+// Check to see if the mutation is fixed or lost
+3:1552 late() {
+    // if all mutations in the sim have a selection coefficient of zero
+    if (sum(sim.mutations.selectionCoeff) == 0.0) {
+        // and the same is true for substitutions, then the mutation of interest is lost
+        lost = sum(sim.substitutions.selectionCoeff) == 0.0;
+
+        if (lost) {
+            line = simID + ": mutation lost in generation " + community.tick;
+            writeFile(simID + "_lost_generation.txt", line, append = T);
+            cat("Sweep mutation lost in cycle " + sim.cycle + "\n");
+            sim.simulationFinished();
+        }
+        // if not, then the mutation has fixed
+        else {
+            cat("Sweep mutation reached fixation.\n");
+
+            // Find the selected mutation using the stored mutation ID
+            selectedMut = sim.substitutions[sim.substitutions.id == selectedMutId];
+
+            // Save mutation position and fixation generation
+            line = simID + ", generation: " + community.tick + ", position: " + selectedMut.position + ", starting frequency: " + startingFreq;
+            writeFile(simID + "_fix_generation.txt", line, append = T);
+
+            // Stop checking now
+            community.deregisterScriptBlock(self);
+        }
+    }
+}
+
+// Finish simulation
+1552 late() {
+    if (sum(sim.mutations.selectionCoeff) == 0.0) {
+        fixed = sum(sim.substitutions.selectionCoeff) > 0;
+        if (fixed) {
+            sim.treeSeqOutput(simID + "_slim.trees");
+           } 
+        } 
+        else {
+            line = simID + ": mutation not fixed by end of simulation";
+            writeFile(simID + "_failedToFix.txt", line, append = T);
+        }
+}

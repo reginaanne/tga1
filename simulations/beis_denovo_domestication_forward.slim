@@ -1,0 +1,92 @@
+// Maize simulation with demography (population bottleneck followed by exponential growth)
+// Population sizes scaled down 10x
+// de novo mutation
+// first run "pre-domestication" population history in msprime
+
+initialize() {
+    initializeTreeSeq();
+    initializeMutationRate(0); // add neutral mutatons on tree later in msprime
+    initializeMutationType("m1", 0.5, "f", 0.0); // neutral
+    initializeMutationType("m2", 0.5, "f", sel); // selected
+
+    m1.mutationStackPolicy = "f";
+    m2.mutationStackPolicy = "f";
+
+    initializeGenomicElementType("g1", m2, 1.0);
+    initializeGenomicElement(g1, 0, 999999); // 1Mb
+    initializeRecombinationRate(rec);
+}
+
+// Start simulation - bottleneck
+1 early() {
+    defineConstant("simID", getSeed());
+}
+
+// Load in neutral diversity from msprime
+1 late() {
+    sim.readFromPopulationFile(trees);
+    sim.treeSeqRememberIndividuals(p0.individuals);
+
+    // Introduce the mutation
+    target = sample(p0.genomes, 1);
+    target.addNewDrawnMutation(m2, 500000);
+    
+    // Save information about selected mutation
+    mut = sim.mutationsOfType(m2);
+    defineGlobal("selectedMutId", mut.id);
+    startingFreq =  sim.mutationFrequencies(p0, mut);
+    defineGlobal("startingFreq", startingFreq);
+}
+
+// Exponential maize growth
+2:1552 early() {
+    t = sim.cycle - 1;
+    p0_size = round(646 * (1 + 0.00259439665)^t);
+    p0.setSubpopulationSize(asInteger(p0_size));
+}
+
+// Check to see if the mutation is fixed or lost
+3:1552 late() {
+    // If all mutations in the sim have a selection coefficient of zero
+    if (sum(sim.mutations.selectionCoeff) == 0.0) {
+        // and the same is true for substitutions, then the mutation of interest is lost
+        lost = sum(sim.substitutions.selectionCoeff) == 0.0;
+        
+        // End simulation if mutation is lost
+        if (lost) {
+            line = simID + ": mutation lost in generation " + community.tick;
+            writeFile(simID + "_lost_generation.txt", line, append = T);
+            cat("Sweep mutation lost in cycle " + sim.cycle + "\n");
+            sim.simulationFinished();
+        }
+        // if not, then the mutation has fixed
+        else {
+            cat("Sweep mutation reached fixation.\n");
+
+            // Find the selected mutation using the stored mutation ID
+            selectedMut = sim.substitutions[sim.substitutions.id == selectedMutId];
+
+            // Save mutation position and fixation generation
+            line = simID + ", generation: " + community.tick + ", position: " + selectedMut.position + ", starting frequency: " + startingFreq;
+            writeFile(simID + "_fix_generation.txt", line, append = T);
+
+            // Stop checking now
+            community.deregisterScriptBlock(self);
+        }
+    }
+}
+
+// Finish simulation
+1552 late() {
+    if (sum(sim.mutations.selectionCoeff) == 0.0) {
+        fixed = sum(sim.substitutions.selectionCoeff) > 0;
+        if (fixed) {
+            community.deregisterScriptBlock(self);
+            sim.treeSeqOutput(simID + "_slim.trees");
+           } 
+        } 
+        else {
+            line = simID + ": mutation not fixed by end of simulation";
+            writeFile(simID + "_failedToFix.txt", line, append = T);
+        }
+}
